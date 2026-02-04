@@ -20,7 +20,9 @@ public:
     ~MainWindow();
 
 private slots:
-    void clickOnButtonStart_Stop();
+    void on_StartStopButton_clicked();
+    void on_BrowseButtonOutput_clicked();
+    void on_BrowseButtonInput_clicked();
     void processByTimer();
 
 signals:

@@ -4,11 +4,12 @@
 #include <QObject>
 
 struct ProcessingSettings {
+    QString inputPath;
     QString fileMask;
     QString outputPath;
     bool deleteSource;
     int onDuplicateAction;
-    quint64 xorKey;
+    QByteArray xorKey;
 };
 
 class FileProcessor : public QObject

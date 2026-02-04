@@ -8,10 +8,10 @@ FileProcessor::FileProcessor(QObject *parent)
 {}
 
 void FileProcessor::processFiles(const ProcessingSettings& settings) {
-    emit statusUpdated("Searching files");
+    emit statusUpdated("Поиск файлов");
     emit progressChanged(0);
 
-    QDirIterator it(QFileInfo(settings.fileMask).path(), {QFileInfo(settings.fileMask).fileName()}, QDir::Files);
+    QDirIterator it(settings.inputPath, {settings.fileMask}, QDir::Files);
     QList<QString> filesToProcess;
 
     while(it.hasNext()) {
@@ -19,39 +19,47 @@ void FileProcessor::processFiles(const ProcessingSettings& settings) {
     }
 
     if (filesToProcess.empty()) {
-        emit statusUpdated("There is no files to work with");
+        emit statusUpdated("Нет файлов для обработки");
         emit finished();
         return;
     }
 
     int count = filesToProcess.size();
-    emit statusUpdated(QString("Find %1 files").arg(count));
+    emit statusUpdated(QString("Файлов найдено: %1").arg(count));
 
     for (int i = 0; i < count; i++) {
         const QString& filePath = filesToProcess.at(i);
-        emit statusUpdated(QString("Work with  %1 from %2: %3").arg(i + 1).arg(count).arg(QFileInfo(filePath).fileName()));
+        emit statusUpdated(QString("Работаем с  %1 из %2: %3").
+                           arg(i + 1).arg(count).arg(QFileInfo(filePath).fileName()));
 
         QFileInfo fileInfo(filePath);
-
         QFile inFile(filePath);
+
         if (!inFile.open(QIODevice::ReadOnly)) {
-            emit statusUpdated("Error to open file");
+            emit statusUpdated("Ошибка открытия файла");
             continue;
         }
 
-        QString baseName = fileInfo.baseName();
-        QString sufFile = fileInfo.suffix();
-        QString outFilePath = settings.outputPath + "/" + fileInfo.fileName();
+        QString outFilePath;
+
         if (settings.onDuplicateAction == 1) {
-            int num = 1;
-            while (QFile::exists(outFilePath)) {
-                outFilePath = QString("%1/%2_%3.%4").arg(settings.outputPath).arg(baseName).arg(num++).arg(sufFile);
+
+            const QString baseName = fileInfo.baseName();
+            const QString suffix = fileInfo.suffix();
+            if (suffix.isEmpty()) {
+                outFilePath = QString("%1/%2_1")
+                                  .arg(settings.outputPath).arg(baseName);
+            } else {
+                outFilePath = QString("%1/%2_1.%3").arg(settings.outputPath).arg(baseName).arg(suffix);
             }
+
+        } else {
+            outFilePath = settings.outputPath + "/" + fileInfo.fileName();
         }
 
         QFile outFile(outFilePath);
         if (!outFile.open(QIODevice::WriteOnly)) {
-            emit statusUpdated("Error: Can't create output file: " + outFilePath);
+            emit statusUpdated("Ошибка: невозможжно создать файл вывода: " + outFilePath);
             inFile.close();
             continue;
         }
@@ -59,12 +67,21 @@ void FileProcessor::processFiles(const ProcessingSettings& settings) {
         const qint64 bufferSize = 4096;
         char buffer[bufferSize];
         qint64 bytesRead;
+
+        qint64 totalPosition = 0;
+
+        const char* keyBytes = settings.xorKey.constData();
+        const int keySize = settings.xorKey.size();
+
         while ((bytesRead = inFile.read(buffer, bufferSize)) > 0) {
-            for(qint64 j = 0; j < bytesRead; j++) {
-                buffer[j] ^= reinterpret_cast<const char*>(&settings.xorKey)[j % sizeof(qint64)];
+            for (qint64 j = 0; j < bytesRead; ++j) {
+                buffer[j] ^= keyBytes[(totalPosition + j) % keySize];
             }
             outFile.write(buffer, bytesRead);
+
+            totalPosition += bytesRead;
         }
+
         inFile.close();
         outFile.close();
 
