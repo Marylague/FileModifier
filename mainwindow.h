@@ -24,6 +24,7 @@ private slots:
     void on_BrowseButtonOutput_clicked();
     void on_BrowseButtonInput_clicked();
     void processByTimer();
+    void onTimerTick();
 
 signals:
     void startProcess(const ProcessingSettings& settings);
@@ -33,5 +34,6 @@ private:
     QThread* mainThread;
     FileProcessor* mainProcessor;
     QTimer* mainTimer;
+    bool mainIsProcessing;
 };
 #endif // MAINWINDOW_H
