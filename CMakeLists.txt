@@ -56,3 +56,4 @@ if(QT_BUILD_TESTS)
 
     qt_add_test(unit_tests unit_tests)
 endif()
+add_subdirectory(FileModifierTestProject)
